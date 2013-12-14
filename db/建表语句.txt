@@ -1,0 +1,26 @@
+
+--项目表
+create table Project 
+(
+Id integer  primary key unique,
+Name varchar(10) UNQUE not null,
+type numeric(1) default 1,
+updatepath  varchar(50) not null,
+updateuser varchar(50) not null,
+updatepsd varchar(50) not null,
+updatetype  numeric(1) default 1,
+testpath varchar(50) not null,
+testuser varchar(50) not null,
+testpsd varchar(50) not null,
+copypath varchar(50) not null,
+copyuser varchar(50) not null,
+copypsd varchar(50) not null,
+startpath varchar(50) not null,
+stoppath varchar(50) not null,
+prostatus numeric(1) default 1,
+mainpro  numeric(1) default 0,
+startapp numeric(1) default 1,
+copynum numeric(2) default 20,
+updatetime DATETIME default (datetime('now', 'localtime'))  
+);
+
