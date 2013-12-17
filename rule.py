@@ -46,7 +46,7 @@ class rule(object):
             try:
                 os.chdir(apppath)#如果启动程序不在第一层目录下？ 需优化
 #                #os.system(startpath)#启动程序后应该退出脚本，现没有退出 一直占用资源 需优化【用start app或 execl解决】
-                #os.system('start %s' %apppname) 
+#                os.system('start %s' %apppname) 
 #                #os.execl(startpath,'i') #直接退出进程
 #                #规避删除目录error32错误，临时解决方法
                 #os.chdir(updatepath)
@@ -188,7 +188,10 @@ class rule(object):
 #         if path.decode('gbk').encode('utf-8') in psutil.Process(pid).cmdline:   
 #              print pid                                                          
 #              return pid                                                         
-#         return False                                                            
+#         return False    
+    def opendir(self,path):
+        os.startfile(path)
+                                                                
 
 class cont_app(rule):
     """增加此类 继承rule 实现业务逻辑"""
@@ -206,7 +209,7 @@ class cont_app(rule):
         copypath = self.copypath
         startpath = self.startpath
         command = self.command
-        self.do_update(updatepath)
+        #self.do_update(updatepath)
         self.close_app(startpath)
         self.zip_dir(copypath,testpath)
         self.replace_app(updatepath,testpath)
