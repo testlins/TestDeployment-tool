@@ -7,38 +7,19 @@ import zipfile
 import mylog
 import psutil
 import re
-
-
-
-
+import subprocess
 import sys 
-#f = open('rule.py','r',encoding='gbk') 
-#reload(sys)
-#sys.setdefaultencoding('gbk') 
 
-class cont_app(object):
+
+class rule(object):
     """升级、备份、替换测试程序"""
-    def __init__(self,updatepath,testpath,copypath,startpath):
-#        reload(sys)
-#        sys.setdefaultencoding('gbk')
+    def __init__(self):
+        super(rule, self).__init__()
 
-#        a = "E:\\电子病历接口\\exe"
-#        print u'%s'%a
 
-        super(cont_app, self).__init__()
-        self.updatepath = os.path.normpath(updatepath.decode('utf-8').encode('gbk'))
-#        print self.updatepath
-        self.testpath = os.path.normpath(testpath.decode('utf-8').encode('gbk'))
-#        print self.testpath
-        self.copypath = os.path.normpath(copypath.decode('utf-8').encode('gbk'))
-#        print self.copypath
-        self.startpath = os.path.normpath(startpath.decode('utf-8').encode('gbk'))
-#        print self.testpath
-#        print self.startpath
-
-    def do_update(self):
+    def do_update(self,updatepath):
         """从svn更新最新程序(不管有没更新都会进行后续操作，需优化)"""
-        updatepath = self.updatepath
+#        updatepath = self.updatepath
         #检查路径是否为目录
         if os.path.isdir(updatepath):
             try:
@@ -53,21 +34,31 @@ class cont_app(object):
 
 
     
-    def start_app(self):
+    def start_app(self,startpath,updatepath,command):
         '''起程序'''
-        startpath = self.startpath
+#        startpath = self.startpath
+#        updatepath = self.updatepath
         apppath = os.path.split(startpath)[0]
         apppname = os.path.split(startpath)[1]
-            
+#        command = self.command
         #print startpath
         if os.path.isfile(startpath):
             try:
                 os.chdir(apppath)#如果启动程序不在第一层目录下？ 需优化
-                #os.system(startpath)#启动程序后应该退出脚本，现没有退出 一直占用资源 需优化【用start app或 execl解决】
-                os.system('start %s' %apppname) 
-                #os.execl(startpath,'i') #直接退出进程
-                #规避删除目录error32错误，临时解决方法
-                os.chdir('c:\\')
+#                #os.system(startpath)#启动程序后应该退出脚本，现没有退出 一直占用资源 需优化【用start app或 execl解决】
+                #os.system('start %s' %apppname) 
+#                #os.execl(startpath,'i') #直接退出进程
+#                #规避删除目录error32错误，临时解决方法
+                #os.chdir(updatepath)
+                #bug3 os.system执行后进程不带路径导致close失败
+                if command is None:
+                    subprocess.Popen(startpath)
+                else:
+                    subprocess.Popen([command,startpath])
+
+                #bug1 规避删除目录error32错误，临时解决方法
+                os.chdir(updatepath)
+#                subprocess.Popen(startpath, shell=True)
             except Exception,msg:
                 print msg
                 return False
@@ -78,7 +69,7 @@ class cont_app(object):
         #sys.exit()
 
 
-    def close_app(self):
+    def close_app(self,startpath):
         '''关闭程序进程'''
 #        startpath = self.startpath
 #        try:
@@ -87,8 +78,9 @@ class cont_app(object):
 #        except Exception,msg:
 #            print msg
 #            return False
-        path = self.startpath
-        pid = self.check_process(path)
+        startpath = self.startpath
+#        print startpath
+        pid = self.check_process(startpath)
         if pid:
             psutil.Process(pid).kill()
         else:
@@ -98,10 +90,10 @@ class cont_app(object):
 
 
  
-    def zip_dir(self):
+    def zip_dir(self,copypath,testpath):
         '''打包备份'''
-        copypath = self.copypath
-        testpath = self.testpath
+#        copypath = self.copypath
+#        testpath = self.testpath
         nowtime = time.strftime("%Y%m%d%H%M%S", time.localtime())
         if os.path.isdir(copypath):
             zipFile1 = zipfile.ZipFile(os.path.join(copypath,os.path.basename(testpath)+nowtime+'.zip'),'w') 
@@ -131,10 +123,10 @@ class cont_app(object):
         zipFile1.close() 
         return True 
        
-    def replace_app(self):
+    def replace_app(self,updatepath,testpath):
         ''' 更新程序'''
-        updatepath  = self.updatepath
-        testpath = self.testpath
+#        updatepath  = self.updatepath
+#        testpath = self.testpath
 #        shutil.rmtree(testpath)
         try:
             #time.sleep(3)
@@ -161,61 +153,67 @@ class cont_app(object):
             return False  
 
 
+    def check_process(self,path):                                                    
+        """查找是否有对应pid"""                                                             
+        path = path.decode('gbk').encode('utf-8')
+        path_list = path.split(' ')                               
+        pid_list = psutil.get_pid_list()
+        sub_list = []
+        for pid in pid_list:                                                         
+            cmdline = psutil.Process(pid).cmdline
+            #print cmdline
+            if path in cmdline:
+                print 'this is %s'%pid
+                return pid
+            #bug2 执行路径 调用路径有空格 以及部分路径重复都能处理；其他情况未知
+            elif set(path_list).issubset(cmdline):
+                for i in xrange(len(cmdline)):
+                    if cmdline[i]==path_list[0]:
+                        sub_list.append(cmdline[i:i+len(path_list)])
+                    if path_list in sub_list:
+                        print pid
+                        return pid
 
+        return False                                            
+        #bug 2 修复路径中有空格不能正确处理的bug 默认路径间只有一个空格//处理有误 注释掉重写                                    
+#            if  len(cmdline)>2:                                                      
+#                cmdline[1]=reduce(lambda x,y : x+' '+y,cmdline[1:])                  
+##                print  cmdline                                                      
+#            for i in cmdline:                                                        
+#                if i==path:                                                          
+#                    return pid                                                       
+#                                                                                                                                                                                                                   
+#         print psutil.Process(5060).cmdline[1:]                                  
+#         #用cmdline 应对脚本调用其他exe的情况;列表中编码为utf-8 编解码搞死人                             
+#         if path.decode('gbk').encode('utf-8') in psutil.Process(pid).cmdline:   
+#              print pid                                                          
+#              return pid                                                         
+#         return False                                                            
 
+class cont_app(rule):
+    """增加此类 继承rule 实现业务逻辑"""
+    def __init__(self,updatepath,testpath,copypath,startpath,command=None):
+        super(cont_app, self).__init__()
+        self.updatepath = os.path.normpath(updatepath.decode('utf-8').encode('gbk'))
+        self.testpath = os.path.normpath(testpath.decode('utf-8').encode('gbk'))
+        self.copypath = os.path.normpath(copypath.decode('utf-8').encode('gbk'))
+        self.startpath = os.path.normpath(startpath.decode('utf-8').encode('gbk'))
+        self.command = command
 
     def do(self):
+        updatepath = self.updatepath
+        testpath = self.testpath
+        copypath = self.copypath
+        startpath = self.startpath
+        command = self.command
+        self.do_update(updatepath)
+        self.close_app(startpath)
+        self.zip_dir(copypath,testpath)
+        self.replace_app(updatepath,testpath)
+        self.start_app(startpath,updatepath,command)
+
         
-
-        #self.do_update()
-        self.close_app()
-        self.zip_dir()
-        time.sleep(0.1)
-        self.replace_app()
-        #time.sleep(3)
-        self.start_app()
-
-
-
-    def check_process(self,path): 
-        """查找是否有对应pid"""
-        path = path.decode('gbk').encode('utf-8')
-        pid_list = psutil.get_pid_list()
-        for pid in pid_list:
-            cmdline = psutil.Process(pid).cmdline
-            #bug 2 修复路径中有空格不能正确处理的bug 默认路径间只有一个空格
-            if  len(cmdline)>2:
-                cmdline[1]=reduce(lambda x,y : x+' '+y,cmdline[1:])
-#                print  cmdline
-            for i in cmdline:
-                if i==path:
-                    return pid
-                    
-        return False 
-                
-                
-#            print psutil.Process(5060).cmdline[1:]
-#            #用cmdline 应对脚本调用其他exe的情况;列表中编码为utf-8 编解码搞死人
-#            if path.decode('gbk').encode('utf-8') in psutil.Process(pid).cmdline:
-##                print pid
-##                return pid
-#            return False
-
-
-
-def do():
-    app = cont_app(updatepath,testpath,copypath,startpath)
-
-    app.do_update()
-    print '1'
-    app.close_app()
-    print '2'
-    app.zip_dir()
-    print '3'
-    app.replace_app()
-    print '4'
-    app.start_app()
-    print '5'
+    
 
 
 
@@ -230,45 +228,15 @@ if __name__ == '__main__':
     #加载sys，编码模式改成gbk识别win中文
 #    reload(sys)
 #    sys.setdefaultencoding('gbk') 
-    updatepath = r"G:\person\计划" #svn路径
-    testpath = r"C:\Users\test\Desktop\deployment\复件 deployment" #测试程序路径
-    copypath = r"C:\Users\test\Desktop\deployment" #备份路径
+    updatepath = "E:\\电子病历接口\\DLLv2\\exe" #svn路径
+    testpath = "C:\Documents and Settings\Administrator\桌面\信息对照\exe" #测试程序路径
+    copypath = "C:\Documents and Settings\Administrator\桌面\信息对照" #备份路径
     #copypath = r"\\192.168.29.15\TEST"
-    startpath = r"C:\Users\test\Desktop\deployment\复件 deployment\上网账号密码.txt"
+    startpath = "C:\Documents and Settings\Administrator\桌面\信息对照\exe\EBM_PortTool.exe"
 #    print testpath
     user = 'Administrator'
     psd = 'jidezhu911'
-    #do()
+#    rule1 = rule(updatepath,testpath,copypath,startpath)
+#    rule1.do()
     app = cont_app(updatepath,testpath,copypath,startpath)
     app.do()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
