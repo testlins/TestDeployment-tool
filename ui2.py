@@ -7,6 +7,7 @@ import sys
 import model 
 import rule
 import subprocess
+import os
 
   
 class TestDialog(QMainWindow,QDialog):  
@@ -35,6 +36,10 @@ class TestDialog(QMainWindow,QDialog):
        #new style       
         self.mainUi.add.clicked.connect(self.addChild)
         self.mainUi.update.clicked.connect(self.updateapp)
+        self.mainUi.opentestpath.clicked.connect(self.opentestdir)
+        self.mainUi.opencopypath.clicked.connect(self.opencopydir)
+        self.mainUi.openupdatepath.clicked.connect(self.openupdatedir)
+        
 #       old style
 #        self.connect(mainUi.add,SIGNAL("clicked()"),self.addChild)  
     
@@ -64,31 +69,8 @@ class TestDialog(QMainWindow,QDialog):
                 newItem = QTableWidgetItem(item) 
                 self.mainUi.tableWidget.setItem(i, x, newItem)  
 
-#    def outSelect(self,Item=None):
-##        print Item
-#
-##        print len(self.textlist)
-#        if len(self.textlist)>0:
-#            self.textlist = []
-##        else:
-####            print self.mainUi.tableWidget.item(Item.row(),0).text()
-##            print self.textlist
-#        try:
-#            self.textlist.append(self.mainUi.tableWidget.item(Item.row(),0).text())
-#        except Exception,msg:
-##            print 'error is:%s'%msg
-#            print 'no data'
-#
-#
-#
-#
-#    
-#    def VerSectionClicked(self,index):
-#        print self.mainUi.tableWidget.item(index,0).text()
-#        
-#        self.textlist.append(self.mainUi.tableWidget.item(index,0).text())
 
-    def updateapp(self):
+    def getcurrentdata(self):
 #        reload(sys)
 #        sys.setdefaultencoding('gbk')
 #
@@ -98,18 +80,49 @@ class TestDialog(QMainWindow,QDialog):
 
         if currentrow==[]:
             print 'no data'
+            return False
         else:
 #            print currentrow[0].text()
             db = self.db
             selectrule =  db.selectrule(currentrow[0].text())
-#            print selectrule[0][0].decode('gbk').encode('utf-8')
+            return selectrule
+    
+    def opentestdir(self):
+        #打开dir实在rule实现还是这里实现有待研究
+        selectrule = self.getcurrentdata()
+        if selectrule:
+            path = os.path.normpath(selectrule[0][1].decode('utf-8').encode('gbk'))
+            os.startfile(path)
+            
+    def opencopydir(self):
+        #打开dir实在rule实现还是这里实现有待研究
+        selectrule = self.getcurrentdata()
+        if selectrule:
+            path = os.path.normpath(selectrule[0][2].decode('utf-8').encode('gbk'))
+            os.startfile(path)
+    
+    def openupdatedir(self):
+        #打开dir实在rule实现还是这里实现有待研究
+        selectrule = self.getcurrentdata()
+        if selectrule:
+            path = os.path.normpath(selectrule[0][0].decode('utf-8').encode('gbk'))
+            os.startfile(path)
+    
 
+
+    
+
+    
+    def updateapp(self):
+        selectrule = self.getcurrentdata()
+        if selectrule:
             dorule = rule.cont_app(selectrule[0][0],selectrule[0][1],selectrule[0][2],selectrule[0][3])
-#            handle=subprocess.Popen(dorule.do(), shell=True,  stdout=subprocess.PIPE)
-#            handle.terminate()
             dorule.do()
-        
-        
+        else:
+            pass
+    
+            
+
         
         
 
