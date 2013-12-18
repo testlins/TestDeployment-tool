@@ -25,11 +25,12 @@ class rule(object):
             try:
                 updateshell = 'TortoiseProc.exe /command:update /path:"%s" /closeonend:1'%updatepath
                 os.system(updateshell)
+                return True
             except Exception,msg:
                 print msg
                 return False
         else:
-            print 'nn'
+            print 'updatepath error'
             return False
 
 
@@ -58,6 +59,7 @@ class rule(object):
 
                 #bug1 规避删除目录error32错误，临时解决方法
                 os.chdir(updatepath)
+                return True
 #                subprocess.Popen(startpath, shell=True)
             except Exception,msg:
                 print msg
@@ -82,10 +84,15 @@ class rule(object):
 #        print startpath
         pid = self.check_process(startpath)
         if pid:
-            psutil.Process(pid).kill()
+            try:
+                psutil.Process(pid).kill()
+                return True
+            except Exception,msg:
+                print 'kill process error is %s'%msg
+                return False
         else:
             print 'no this app'
-            
+            return True
         
 
 
@@ -139,6 +146,7 @@ class rule(object):
 
         try:
             shutil.copytree(updatepath,testpath)
+            return True
         except  Exception,msg:
             print msg
             return False        
@@ -148,6 +156,7 @@ class rule(object):
         #print shell
         try:
             os.popen(shell)
+            return True
         except Exception,msg:
             print msg
             return False  
@@ -209,29 +218,53 @@ class cont_app(rule):
         copypath = self.copypath
         startpath = self.startpath
         command = self.command
-        #self.do_update(updatepath)
-        self.close_app(startpath)
-        self.zip_dir(copypath,testpath)
-        self.replace_app(updatepath,testpath)
+#        do_update = self.do_update(updatepath)
+#        close_app = self.close_app(startpath)
+#        zip_dir = self.zip_dir(copypath,testpath)
+#        replace_app = self.replace_app(updatepath,testpath)
+#        start_app = self.start_app(startpath,updatepath,command)s
+        
+        if self.do_update(updatepath):
+            if self.close_app(startpath):
+                if self.zip_dir(copypath,testpath):
+                    if self.replace_app(updatepath,testpath):
+                        if self.start_app(startpath,updatepath,command):
+                            return 'start'
+                        else:
+                            return 'nostart'
+                    else:
+                        return  'noreplace'
+                else:
+                    return 'nozip'
+            else:
+                return 'noclose'
+        else:
+            return 'noupdate'
+                    
+        
+        
+
+
+    def restart(self):
+        updatepath = self.updatepath
+        startpath = self.startpath
+        command = self.command
+        if self.close_app(startpath):
+            self.start_app(startpath,updatepath,command)
+
+    def startalone(self):
+        updatepath = self.updatepath
+        startpath = self.startpath
+        command = self.command
         self.start_app(startpath,updatepath,command)
-
         
-    
-
-
-
-        
-
-
-
-
         
 
 if __name__ == '__main__':
     #加载sys，编码模式改成gbk识别win中文
 #    reload(sys)
 #    sys.setdefaultencoding('gbk') 
-    updatepath = "E:\\电子病历接口\\DLLv2\\exe" #svn路径
+    updatepath = "E:\\电子病历接口\\DLLv2\\ex" #svn路径
     testpath = "C:\Documents and Settings\Administrator\桌面\信息对照\exe" #测试程序路径
     copypath = "C:\Documents and Settings\Administrator\桌面\信息对照" #备份路径
     #copypath = r"\\192.168.29.15\TEST"
@@ -243,3 +276,4 @@ if __name__ == '__main__':
 #    rule1.do()
     app = cont_app(updatepath,testpath,copypath,startpath)
     app.do()
+

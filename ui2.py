@@ -1,13 +1,20 @@
 #coding=utf-8
 from PyQt4.QtGui import *  
 from PyQt4.QtCore import *  
+from PyQt4 import QtCore
 #import ui_10_1,ui_10_2,ui_10_3  
-import main,check,modify,add
+import main,check,modify,add,messagebox
 import sys  
 import model 
 import rule
 import subprocess
 import os
+
+try:
+    _fromUtf8 = QtCore.QString.fromUtf8
+except AttributeError:
+    def _fromUtf8(s):
+        return s
 
   
 class TestDialog(QMainWindow,QDialog):  
@@ -26,6 +33,7 @@ class TestDialog(QMainWindow,QDialog):
 #        self.rule = rule.cont_app()
         self.addUi=add.Ui_dialog()  
         self.modifyUi=modify.Ui_dialog()  
+        self.messagebox = messagebox.Ui_dialog()
 #self.connect(self.MyTable, SIGNAL("itemClicked (QTableWidgetItem*)"), self.outSelect)
         #因为用itemClicked只能在有值时调用，改用clicked没有查到相关资料
         #self.mainUi.tableWidget.clicked.connect(self.outSelect)
@@ -39,7 +47,8 @@ class TestDialog(QMainWindow,QDialog):
         self.mainUi.opentestpath.clicked.connect(self.opentestdir)
         self.mainUi.opencopypath.clicked.connect(self.opencopydir)
         self.mainUi.openupdatepath.clicked.connect(self.openupdatedir)
-        
+        self.mainUi.restartapp.clicked.connect(self.restartapp)
+#        self.messagebox()
 #       old style
 #        self.connect(mainUi.add,SIGNAL("clicked()"),self.addChild)  
     
@@ -47,6 +56,14 @@ class TestDialog(QMainWindow,QDialog):
         dlg=QDialog()  
         self.addUi.setupUi(dlg)  
         dlg.exec_()  
+
+    def messageinfo(self,message):
+#        messagebox = messagebox.Ui_dialog()
+        dlg=QDialog()  
+        self.messagebox.setupUi(dlg) 
+        self.messagebox.messagelabel.setText(_fromUtf8("%s"%message)) 
+        dlg.exec_()  
+    
 
     def loadtable(self):
         #加载编码设置 没搞懂为什么首行设置的utf-8不行？？
@@ -90,26 +107,54 @@ class TestDialog(QMainWindow,QDialog):
     def opentestdir(self):
         #打开dir实在rule实现还是这里实现有待研究
         selectrule = self.getcurrentdata()
-        if selectrule:
+        #bug 4 增加判断
+        if selectrule and selectrule[0][1] is not '':
             path = os.path.normpath(selectrule[0][1].decode('utf-8').encode('gbk'))
-            os.startfile(path)
+            try:
+                os.startfile(path)
+            except Exception,msg:
+                self.messageinfo('打开目录错误，详情请看log日志 %s'%msg) 
+        else:
+            self.messageinfo('对象/目录为空，请确认后再操作')
+            
             
     def opencopydir(self):
         #打开dir实在rule实现还是这里实现有待研究
         selectrule = self.getcurrentdata()
-        if selectrule:
+        if selectrule and selectrule[0][2] is not '':
             path = os.path.normpath(selectrule[0][2].decode('utf-8').encode('gbk'))
-            os.startfile(path)
+            try:
+                os.startfile(path)
+            except Exception,msg:
+                self.messageinfo('打开目录错误，详情请看log日志 %s'%msg) 
+        else:
+            self.messageinfo('对象/目录为空，请确认后再操作')
+        
+            
     
     def openupdatedir(self):
         #打开dir实在rule实现还是这里实现有待研究
         selectrule = self.getcurrentdata()
-        if selectrule:
+        if selectrule and selectrule[0][0] is not '':
             path = os.path.normpath(selectrule[0][0].decode('utf-8').encode('gbk'))
-            os.startfile(path)
+            try:
+                os.startfile(path)
+            except Exception,msg:
+                self.messageinfo('打开目录错误，详情请看log日志 %s'%msg) 
+        else:
+            self.messageinfo('对象/目录为空，请确认后再操作')
+        
+            
     
 
-
+    def restartapp(self):
+        selectrule = self.getcurrentdata()
+        if selectrule:
+            dorule = rule.cont_app(selectrule[0][0],selectrule[0][1],selectrule[0][2],selectrule[0][3])
+            dorule.restart()
+        else:
+            self.messageinfo('对象为空，请选择后再操作')
+        
     
 
     
@@ -117,9 +162,24 @@ class TestDialog(QMainWindow,QDialog):
         selectrule = self.getcurrentdata()
         if selectrule:
             dorule = rule.cont_app(selectrule[0][0],selectrule[0][1],selectrule[0][2],selectrule[0][3])
-            dorule.do()
+            message = dorule.do()
+            if message=='start':
+                pass
+            elif message=='nostart':
+                self.messageinfo('启动失败，详情请看log日志')
+            elif message=='noreplace':
+                self.messageinfo('启动失败，详情请看log日志')
+            elif message=='nozip':
+                self.messageinfo('打包失败，详情请看log日志')
+            elif message=='noclose':
+                self.messageinfo('关闭失败，详情请看log日志')
+            elif message=='noupdate':
+                self.messageinfo('升级失败，详情请看log日志')
+                        
+            
+
         else:
-            pass
+            self.messageinfo('对象为空，请选择后再操作')
     
             
 
@@ -133,17 +193,7 @@ if __name__ == "__main__":
     sys.exit(app.exec_())  
 
 
-#class MyForm(QtGui.QMainWindow):
-#    def __init__(self, parent=None):
-#        QtGui.QWidget.__init__(self, parent)
-#        self.ui = Ui_MainWindow()
-#        self.ui.setupUi(self)
-#
-#if __name__ == "__main__":
-#    app = QtGui.QApplication(sys.argv)
-#    myapp = MyForm()
-#    myapp.show()
-#    sys.exit(app.exec_())
+
 
 
 
