@@ -3,7 +3,7 @@
 def initlog():
     import logging
     logger = logging.getLogger()
-    hdlr = logging.FileHandler('test.log')
+    hdlr = logging.FileHandler('log/exec.log')
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     hdlr.setFormatter(formatter)
     logger.addHandler(hdlr)

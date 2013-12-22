@@ -6,16 +6,17 @@ import time
 import zipfile
 import mylog
 import psutil
-import re
+import model
 import subprocess
 import sys 
 
+#将log日志设为全局变量 是否有更好方法再说
+mylog = mylog.initlog()
 
 class rule(object):
     """升级、备份、替换测试程序"""
     def __init__(self):
         super(rule, self).__init__()
-
 
     def do_update(self,updatepath):
         """从svn更新最新程序(不管有没更新都会进行后续操作，需优化)"""
@@ -25,12 +26,13 @@ class rule(object):
             try:
                 updateshell = 'TortoiseProc.exe /command:update /path:"%s" /closeonend:1'%updatepath
                 os.system(updateshell)
+                mylog.info('升级成功')
                 return True
             except Exception,msg:
-                print msg
+                mylog.error('升级失败，%s'%msg)
                 return False
         else:
-            print 'updatepath error'
+            mylog.error('升级失败，升级目录不合法')
             return False
 
 
@@ -59,13 +61,14 @@ class rule(object):
 
                 #bug1 规避删除目录error32错误，临时解决方法
                 os.chdir(updatepath)
+                mylog.info('启动服务成功')
                 return True
 #                subprocess.Popen(startpath, shell=True)
             except Exception,msg:
-                print msg
+                mylog.error('启动服务失败，%s'%msg)
                 return False
         else:
-            print 'apppath is error'
+            mylog.error('启动服务失败，启动命令错误')
             return False
 
         #sys.exit()
@@ -86,12 +89,13 @@ class rule(object):
         if pid:
             try:
                 psutil.Process(pid).kill()
+                mylog.info('关闭服务成功,进程号为%s'%pid)
                 return True
             except Exception,msg:
-                print 'kill process error is %s'%msg
+                mylog.error('关闭服务失败，%s'%msg)
                 return False
         else:
-            print 'no this app'
+            mylog.warning('关闭服务失败，服务未启动')
             return True
         
 
@@ -105,6 +109,7 @@ class rule(object):
         if os.path.isdir(copypath):
             zipFile1 = zipfile.ZipFile(os.path.join(copypath,os.path.basename(testpath)+nowtime+'.zip'),'w') 
         else:
+            mylog.error('备份失败，备份目录不合法')
             return False
         #用宽度优先搜索全路径
         if os.path.isdir(testpath):
@@ -120,6 +125,7 @@ class rule(object):
                 else:
                     zipFile1.write(os.path.join(testpath,out),out)
         else:
+            mylog.error('备份失败，测试目录不合法')
             return False
         #用os.walk搜索全路径下文件,还不能做到压缩目录不带全路径
         """for dirpath, dirnames, filenames in os.walk(testpath):
@@ -128,6 +134,7 @@ class rule(object):
             #print filename
                 zipFile1.write(os.path.join(dirpath,filename))"""        
         zipFile1.close() 
+        mylog.info('备份成功')
         return True 
        
     def replace_app(self,updatepath,testpath):
@@ -141,14 +148,19 @@ class rule(object):
 
           
         except  Exception,msg:
-            print 'rmtree error is %s'%msg
+            mylog.error('删除测试目录失败 %s'%msg)
             return False  
 
         try:
             shutil.copytree(updatepath,testpath)
+            #插入当前时间做更新时间
+            db = model.depdb()
+            #sqllite接受utf-8格式 所以要转码
+            db.updatetime(updatepath.decode('gbk').encode('utf-8'),testpath.decode('gbk').encode('utf-8'))
+            mylog.info('更新成功')
             return True
         except  Exception,msg:
-            print msg
+            mylog.error('替换更新文件失败 %s'%msg)
             return False        
 
     def conn_pc(self,path=None,user=None,psd=None):
@@ -172,7 +184,7 @@ class rule(object):
             cmdline = psutil.Process(pid).cmdline
             #print cmdline
             if path in cmdline:
-                print 'this is %s'%pid
+                mylog.info('程序进程号为 %s'%pid)
                 return pid
             #bug2 执行路径 调用路径有空格 以及部分路径重复都能处理；其他情况未知
             elif set(path_list).issubset(cmdline):
@@ -180,9 +192,9 @@ class rule(object):
                     if cmdline[i]==path_list[0]:
                         sub_list.append(cmdline[i:i+len(path_list)])
                     if path_list in sub_list:
-                        print pid
+                        mylog.info('程序进程号为 %s'%pid)
                         return pid
-
+        mylog.info('未找到程序进程')
         return False                                            
         #bug 2 修复路径中有空格不能正确处理的bug 默认路径间只有一个空格//处理有误 注释掉重写                                    
 #            if  len(cmdline)>2:                                                      
@@ -206,6 +218,7 @@ class cont_app(rule):
     """增加此类 继承rule 实现业务逻辑"""
     def __init__(self,updatepath,testpath,copypath,startpath,command=None):
         super(cont_app, self).__init__()
+        #bug 5 脏数据引起和bug4原因一样，数据字段已为必填，可规避此问题
         self.updatepath = os.path.normpath(updatepath.decode('utf-8').encode('gbk'))
         self.testpath = os.path.normpath(testpath.decode('utf-8').encode('gbk'))
         self.copypath = os.path.normpath(copypath.decode('utf-8').encode('gbk'))
@@ -250,13 +263,24 @@ class cont_app(rule):
         startpath = self.startpath
         command = self.command
         if self.close_app(startpath):
-            self.start_app(startpath,updatepath,command)
+            if self.start_app(startpath,updatepath,command):
+                return 'start'
+            else:
+                return 'nostart'
+        else:
+            return 'noclose'
 
     def startalone(self):
         updatepath = self.updatepath
         startpath = self.startpath
         command = self.command
-        self.start_app(startpath,updatepath,command)
+        if self.check_process(startpath):
+            return 'isstart'
+        elif self.start_app(startpath,updatepath,command):
+            return  'start'
+        else:
+            return 'nostart'
+
         
         
 
@@ -264,11 +288,11 @@ if __name__ == '__main__':
     #加载sys，编码模式改成gbk识别win中文
 #    reload(sys)
 #    sys.setdefaultencoding('gbk') 
-    updatepath = "E:\\电子病历接口\\DLLv2\\ex" #svn路径
-    testpath = "C:\Documents and Settings\Administrator\桌面\信息对照\exe" #测试程序路径
-    copypath = "C:\Documents and Settings\Administrator\桌面\信息对照" #备份路径
+    updatepath = r"E:\\电子病历接口\\DLLv2\\exe" #svn路径
+    testpath = r"C:\Documents and Settings\Administrator\桌面\信息对照\exe" #测试程序路径
+    copypath = r"C:\Documents and Settings\Administrator\桌面\信息对照" #备份路径
     #copypath = r"\\192.168.29.15\TEST"
-    startpath = "C:\Documents and Settings\Administrator\桌面\信息对照\exe\EBM_PortTool.exe"
+    startpath = r"C:\Documents and Settings\Administrator\桌面\信息对照\exe\EBM_PortTool.exe"
 #    print testpath
     user = 'Administrator'
     psd = 'jidezhu911'

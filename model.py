@@ -49,13 +49,21 @@ class depdb(object):
 
     def updatedb(self,id,datalist):
         pass
-
-
+    
+    def updatetime(self,updatepath,testpath):
+        #整体来说 应该传入编号保证更新的唯一性，先这样
+        sql = "update Project set updatetime = datetime('now', 'localtime') where updatepath='%s'and testpath ='%s'"%(updatepath,testpath)
+#        print sql
+        cu.execute(sql)
+        iddb.commit()
 if __name__ == '__main__':
     #Project ={'Id':None,'Name':'x1111x'}
 #    Project = [None]
+    updatepath = r"E:\电子病历接口\DLLv2\exe" #svn路径
+    testpath = r"C:\Documents and Settings\Administrator\桌面\信息对照\exe"
+    
     x=depdb()
-    print x.selectrule('信息对照1')
+    x.updatetime(updatepath,testpath)
 #    x.insertdb(Project)
 
     
