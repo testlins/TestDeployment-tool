@@ -143,7 +143,8 @@ class rule(object):
 #        testpath = self.testpath
 #        shutil.rmtree(testpath)
         try:
-            #time.sleep(3)
+            #等待0.2秒 确保进程不影响删除
+            time.sleep(0.2)
             shutil.rmtree(testpath)
 
           
